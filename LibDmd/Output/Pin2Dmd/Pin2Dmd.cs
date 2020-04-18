@@ -31,10 +31,12 @@ namespace LibDmd.Output.Pin2Dmd
 		private byte[] _frameBufferRgb24;
 		private byte[] _frameBufferGray4;
 		private readonly byte[] _colorPalette;
+		private readonly byte[] _colorPalettev3;
 		private int _currentPreloadedPalette;
 		private bool _paletteIsPreloaded;
 		private static Pin2Dmd _instance;
 		private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
+		private bool _disablePreload = true;
 
 		private Pin2Dmd()
 		{
@@ -46,7 +48,17 @@ namespace LibDmd.Output.Pin2Dmd
 			_colorPalette[3] = 0xFF;
 			_colorPalette[4] = 0x04;
 			_paletteIsPreloaded = false;
+
+			// New firmware color palette
+			_colorPalettev3 = new byte[2052];
+			_colorPalettev3[0] = 0x01;
+			_colorPalettev3[1] = 0xc3;
+			_colorPalettev3[2] = 0xe7;
+			_colorPalettev3[3] = 0xfe;
+			_colorPalettev3[4] = 0xed;
+			_colorPalettev3[5] = 0x10; 
 		}
+		
 
 		/// <summary>
 		/// Returns the current instance of the PIN2DMD API. In any case,
@@ -235,6 +247,20 @@ namespace LibDmd.Output.Pin2Dmd
 			SetSinglePalette(new[] { Colors.Black, color });
 		}
 
+		void SetSinglePaletteV3(Color[] colors)
+		{
+			var pos = 6;
+			for (var i = 0; i < 16; i++)
+			{
+				var color = colors[i];
+				_colorPalettev3[pos] = color.R;
+				_colorPalettev3[pos + 1] = color.G;
+				_colorPalettev3[pos + 2] = color.B;
+				pos += 3;
+			}
+			RenderRaw(_colorPalette);
+		}
+
 		public void SetSinglePalette(Color[] colors)
 		{
 			var palette = ColorUtil.GetPalette(colors, 16);
@@ -258,6 +284,11 @@ namespace LibDmd.Output.Pin2Dmd
 
 		public void SetPalette(Color[] colors, int index)
 		{
+			if (_disablePreload)
+			{
+				SetSinglePaletteV3(colors);
+				return;
+			}
 			if (index >= 0 && _paletteIsPreloaded) {
 				if (index == _currentPreloadedPalette)
 					return;
@@ -278,7 +309,7 @@ namespace LibDmd.Output.Pin2Dmd
 
 		public void PreloadPalettes(Coloring coloring)
 		{
-			Logger.Debug("[Pin2DMD] Preloading " + coloring.Palettes.Length + "palettes.");
+	 	    Logger.Debug("[Pin2DMD] Preloading " + coloring.Palettes.Length + "palettes.");
 			foreach (var palette in coloring.Palettes) {
 				var pos = 7;
 				for (var i = 0; i < 16; i++) {
