@@ -50,7 +50,7 @@ namespace LibDmd.Output.Pin2Dmd
 			_paletteIsPreloaded = false;
 
 			// New firmware color palette
-			_colorPalettev3 = new byte[2052];
+			_colorPalettev3 = new byte[64];
 			_colorPalettev3[0] = 0x01;
 			_colorPalettev3[1] = 0xc3;
 			_colorPalettev3[2] = 0xe7;
@@ -249,16 +249,23 @@ namespace LibDmd.Output.Pin2Dmd
 
 		void SetSinglePaletteV3(Color[] colors)
 		{
+			var palette = ColorUtil.GetPalette(colors, 16);
+			var identical = true;
 			var pos = 6;
+			
 			for (var i = 0; i < 16; i++)
 			{
-				var color = colors[i];
+				var color = palette[i];
+				identical = identical && _colorPalettev3[pos] == color.R && _colorPalettev3[pos + 1] == color.G && _colorPalettev3[pos + 2] == color.B; 
 				_colorPalettev3[pos] = color.R;
 				_colorPalettev3[pos + 1] = color.G;
 				_colorPalettev3[pos + 2] = color.B;
 				pos += 3;
 			}
-			RenderRaw(_colorPalette);
+			if (!identical)
+			{
+				RenderRaw(_colorPalettev3);
+			}
 		}
 
 		public void SetSinglePalette(Color[] colors)
