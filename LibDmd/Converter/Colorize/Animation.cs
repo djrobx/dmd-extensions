@@ -6,6 +6,7 @@ using System.Windows.Media;
 using System.Collections.Generic;
 using LibDmd.Common;
 using NLog;
+using System.Linq;
 
 namespace LibDmd.Converter.Colorize
 {
@@ -249,43 +250,37 @@ namespace LibDmd.Converter.Colorize
 
 		private void RenderAnimation(byte[][] vpmFrame, Action completed = null)
 		{
-			if (SwitchMode == SwitchMode.ColorMask || SwitchMode == SwitchMode.Replace || SwitchMode == SwitchMode.MaskedReplace)
-			{
-				var delay = Environment.TickCount - _lastTick;
-				_lastTick = Environment.TickCount;
+			var delay = Environment.TickCount - _lastTick;
+			_lastTick = Environment.TickCount;
 
-				_timer -= delay;
-				if (_frameIndex >= NumFrames)
-				{
-					Logger.Error("[vni][{0}] No more frames in animation ({1}).", SwitchMode, NumFrames);
-					return;
-				}
+			_timer -= delay;
+			if (_frameIndex >= NumFrames)
+			{
+				Logger.Error("[vni][{0}] No more frames in animation ({1}).", SwitchMode, NumFrames);
+				return;
 			}
 			if (!(SwitchMode == SwitchMode.Follow || SwitchMode == SwitchMode.FollowReplace) || FoundFollowMatch)
 			{
 				OutputFrame(vpmFrame);
 			}
-			// Do not advance frames in LCM
-			// When timer runs out and not in follow modes
-			// When in follow modes and a match is detected.
+			
+			var IsFollowMode = (SwitchMode == SwitchMode.Follow || SwitchMode == SwitchMode.FollowReplace);
+			var IsFinalFrame = (_frameIndex+1 == NumFrames);
+
+			// Advance frames - when not in LCM, and eithr:
+			// Timer has expired (either normal animation, or the final frame of a follow sequencee), or
+			// Follow sequence found a frame
+
 			if (SwitchMode != SwitchMode.LayeredColorMask && 
-				 ((_timer <= 0 && !(SwitchMode == SwitchMode.Follow || SwitchMode == SwitchMode.FollowReplace)) 
-				 || ((SwitchMode == SwitchMode.Follow || SwitchMode == SwitchMode.FollowReplace) && FoundFollowMatch)))
+				 ((_timer <= 0 && (!IsFollowMode || IsFinalFrame)) ||
+				 (IsFollowMode && !IsFinalFrame && FoundFollowMatch)))
 			{
 				_frameIndex++;
 				FoundFollowMatch = false;
 				if (_frameIndex == NumFrames)
 				{
-					// If it's a follow mode the final frame should repeat indefinitely, only interrupted by another hash match elsewhere
-					if (SwitchMode == SwitchMode.Follow || SwitchMode == SwitchMode.FollowReplace)
-					{
-						_frameIndex--;
-					}
-					else
-					{
-						Stop("finished");
-						completed?.Invoke();
-					}
+					Stop("finished");
+					completed?.Invoke();
 				}
 				else
 				{
@@ -321,7 +316,7 @@ namespace LibDmd.Converter.Colorize
 							if (i < vpmFrame.Length)
 								outplanes[i] = FrameUtil.CombinePlaneWithMask(animplanes[i], vpmFrame[i], FollowMask);
 							else
-								outplanes[i] = animplanes[i];
+								outplanes[i] = FrameUtil.MaskPlane(animplanes[i], FollowMask);
 						}
 					}
 					_currentRender(outplanes);
@@ -349,12 +344,8 @@ namespace LibDmd.Converter.Colorize
 			_timer += (int)Frames[_frameIndex].Delay;
 			if (SwitchMode == SwitchMode.Follow || SwitchMode == SwitchMode.FollowReplace)
 			{
-				// Need the *next* frame's mask and hash
-				if (_frameIndex + 1 < NumFrames)
-				{					
-					FollowHash = Frames[_frameIndex+1].Hash;
-					FollowMask = Frames[_frameIndex+1].Mask;
-				}
+				FollowHash = Frames[_frameIndex].Hash;
+				FollowMask = Frames[_frameIndex].Mask;
 			}
 			else if (SwitchMode == SwitchMode.MaskedReplace)
 			{

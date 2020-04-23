@@ -45,7 +45,7 @@ namespace LibDmd.Converter.Colorize
 			for (var i = 0; i < BitLength; i++) {
 				var marker = reader.ReadByte();
 				if (marker == 0x6d) {
-					Mask = reader.ReadBytes(planeSize).Select(VniAnimationPlane.Reverse).ToArray(); ;
+					Mask = reader.ReadBytes(planeSize).Select(VniAnimationPlane.Reverse).ToArray(); 
 				} else {
 					var plane = new VniAnimationPlane(reader, planeSize, marker);
 					Planes.Add(plane);

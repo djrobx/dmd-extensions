@@ -514,7 +514,24 @@ namespace LibDmd.Common
 			}
 			return outplane;
 		}
-		
+
+		public static byte[] MaskPlane(byte[] Plane, byte[] Mask)
+		{
+			var length = Plane.Length;
+			System.Diagnostics.Debug.Assert(length == Mask.Length);
+			byte[] outplane = new byte[length];
+
+			unchecked
+			{
+				for (int i = 0; i < length; i++)
+				{
+					var maskbits = Mask[i];
+					outplane[i] = (byte)(Plane[i] & maskbits);
+				}
+			}
+			return outplane;
+		}
+
 
 		/// <summary>
 		/// Tuät ä Bit-Ebini uifd Konsolä uisä druckä
