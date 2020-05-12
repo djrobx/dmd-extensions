@@ -98,7 +98,8 @@ namespace LibDmd.Output.Pin2Dmd
 
 				if (_pin2DmdDevice.Info.ProductString.Contains("PIN2DMD")) {
 
-					if (_pin2DmdDevice.Info.ProductString.Contains("PIN2DMD XL")) {
+					var isXL = _pin2DmdDevice.Info.ProductString.Contains("PIN2DMD XL");
+					if (isXL) {
 						DmdWidth = 192;
 						DmdHeight = 64;
 					}
@@ -123,7 +124,7 @@ namespace LibDmd.Output.Pin2Dmd
 					_frameBufferGray4 = new byte[size];
 					_frameBufferGray4[0] = 0x81; // frame sync bytes
 					_frameBufferGray4[1] = 0xC3;
-					_frameBufferGray4[2] = 0xE7;
+					_frameBufferGray4[2] = (byte)(isXL ? 0xE8 : 0xE7);
 					_frameBufferGray4[3] = 0x00;
 
 				} else {
@@ -158,6 +159,8 @@ namespace LibDmd.Output.Pin2Dmd
 			// convert to bit planes
 			var planes = FrameUtil.Split(DmdWidth, DmdHeight, 4, frame);
 
+			_frameBufferGray4[3] = 0x0C;
+
 			// copy to buffer
 			var changed = FrameUtil.Copy(planes, _frameBufferGray4, 4);
 
@@ -182,6 +185,8 @@ namespace LibDmd.Output.Pin2Dmd
 		{
 			SetPalette(frame.Palette, frame.PaletteIndex);
 
+			_frameBufferGray4[3] = 0x0C;
+
 			// copy to buffer
 			var changed = FrameUtil.Copy(frame.Planes, _frameBufferGray4, 4);
 
@@ -194,6 +199,8 @@ namespace LibDmd.Output.Pin2Dmd
 		public void RenderColoredGray2(ColoredFrame frame)
 		{
 			SetPalette(frame.Palette, frame.PaletteIndex);
+
+			_frameBufferGray4[3] = 0x06;
 
 			var joinedFrame = FrameUtil.Join(DmdWidth, DmdHeight, frame.Planes);
 
