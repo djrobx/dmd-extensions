@@ -29,6 +29,7 @@ namespace LibDmd.Output.Pin2Dmd
 		private byte[] _frameBufferGray4;
 
 		private readonly byte[] _colorPalette;
+		private readonly byte[] _colorPalettev3;
 		private int _currentPreloadedPalette;
 		private bool _paletteIsPreloaded;
 
@@ -36,6 +37,7 @@ namespace LibDmd.Output.Pin2Dmd
 		protected static readonly Dimensions Dim192x64 = new Dimensions(192, 64);
 
 		private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
+		private bool _disablePreload = true;
 
 		protected abstract bool HasValidName(string name);
 		public abstract string Name { get; }
@@ -66,6 +68,15 @@ namespace LibDmd.Output.Pin2Dmd
 			_frameBufferRgb24[1] = 0xC3;
 			_frameBufferRgb24[2] = 0xE8;
 			_frameBufferRgb24[3] = 15; // number of planes
+			
+			// New firmware color palette
+			_colorPalettev3 = new byte[64];
+			_colorPalettev3[0] = 0x01;
+			_colorPalettev3[1] = 0xc3;
+			_colorPalettev3[2] = 0xe7;
+			_colorPalettev3[3] = 0xfe;
+			_colorPalettev3[4] = 0xed;
+			_colorPalettev3[5] = 0x10; 
 		}
 
 		public void Init()
@@ -196,6 +207,27 @@ namespace LibDmd.Output.Pin2Dmd
 			SetSinglePalette(new[] { Colors.Black, color });
 		}
 
+		void SetSinglePaletteV3(Color[] colors)
+		{
+			var palette = ColorUtil.GetPalette(colors, 16);
+			var identical = true;
+			var pos = 6;
+			
+			for (var i = 0; i < 16; i++)
+			{
+				var color = palette[i];
+				identical = identical && _colorPalettev3[pos] == color.R && _colorPalettev3[pos + 1] == color.G && _colorPalettev3[pos + 2] == color.B; 
+				_colorPalettev3[pos] = color.R;
+				_colorPalettev3[pos + 1] = color.G;
+				_colorPalettev3[pos + 2] = color.B;
+				pos += 3;
+			}
+			if (!identical)
+			{
+				RenderRaw(_colorPalettev3);
+			}
+		}
+
 		public void SetSinglePalette(Color[] colors)
 		{
 			var palette = ColorUtil.GetPalette(colors, 16);
@@ -219,6 +251,11 @@ namespace LibDmd.Output.Pin2Dmd
 
 		public void SetPalette(Color[] colors, int index)
 		{
+			if (_disablePreload)
+			{
+				SetSinglePaletteV3(colors);
+				return;
+			}
 			if (index >= 0 && _paletteIsPreloaded) {
 				if (index == _currentPreloadedPalette) {
 					return;
